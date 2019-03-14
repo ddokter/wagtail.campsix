@@ -7,6 +7,7 @@ from wagtail.core.models import Page, PageRevision
 from django_filters.rest_framework import DjangoFilterBackend
 from .base import LinksModelSerializer, MetaMixin
 from .pagination import LinksPagination
+from .permissions import PagePermissions, can_publish_page, can_unpublish_page
 
 
 class PageRevisionSerializer(LinksModelSerializer):
@@ -32,22 +33,25 @@ class PageSerializer(LinksModelSerializer):
 
         _links = super(PageSerializer, self).get_links(obj)
 
+        req = self.context.get('request')
+
         if obj.get_children().count():
             _links['children'] = reverse(
                 "page-children",
                 kwargs={'pk': obj.id},
-                request=self.context.get('request'))
+                request=req)
 
-        if not obj.live:
+        if can_publish_page(req.user, obj):
             _links['publish'] = reverse(
                 "page-publish",
                 kwargs={'pk': obj.id},
-                request=self.context.get('request'))
-        else:
+                request=req)
+
+        if can_unpublish_page(req.user, obj):
             _links['unpublish'] = reverse(
                 "page-unpublish",
                 kwargs={'pk': obj.id},
-                request=self.context.get('request'))
+                request=req)
 
         return _links
 
@@ -106,6 +110,7 @@ class PageViewSet(MetaMixin, viewsets.ModelViewSet):
     pagination_class = LinksPagination
     search_fields = ('title', 'slug',)
     filter_fields = ('title', 'show_in_menus')
+    permission_classes = (PagePermissions,)
 
     @detail_route()
     def children(self, request, pk=None):
