@@ -1,5 +1,4 @@
-from rest_framework.pagination import (
-    PageNumberPagination, _get_displayed_page_numbers)
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 

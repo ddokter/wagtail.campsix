@@ -2,7 +2,7 @@ from rest_framework import viewsets, serializers
 from rest_framework.reverse import reverse
 from rest_framework.response import Response
 from rest_framework.decorators import detail_route, list_route
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import SearchFilter, OrderingFilter
 from wagtail.core.models import Page
 from django_filters.rest_framework import DjangoFilterBackend
 from .base import LinksModelSerializer
@@ -82,7 +82,7 @@ class PageViewSet(viewsets.ModelViewSet):
 
     queryset = Page.objects.all()
     serializer_class = PageSerializer
-    filter_backends = (DjangoFilterBackend, SearchFilter,)
+    filter_backends = (DjangoFilterBackend, SearchFilter, OrderingFilter)
     filter_class = PageFilter
     pagination_class = LinksPagination
     search_fields = ('title', 'slug',)
