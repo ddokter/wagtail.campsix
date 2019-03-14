@@ -3,16 +3,23 @@ from rest_framework.reverse import reverse
 from rest_framework.response import Response
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.filters import SearchFilter, OrderingFilter
-from wagtail.core.models import Page
+from wagtail.core.models import Page, PageRevision
 from django_filters.rest_framework import DjangoFilterBackend
-from .base import LinksModelSerializer
+from .base import LinksModelSerializer, MetaMixin
 from .pagination import LinksPagination
-from .filters import PageFilter
+
+
+class PageRevisionSerializer(LinksModelSerializer):
+
+    class Meta:
+        model = PageRevision
+        fields = ('created_at',)
 
 
 class PageSerializer(LinksModelSerializer):
 
     _type = serializers.SerializerMethodField(method_name="get_type")
+    revisions = PageRevisionSerializer(many=True)
 
     def get_type(self, obj):
 
@@ -31,11 +38,23 @@ class PageSerializer(LinksModelSerializer):
                 kwargs={'pk': obj.id},
                 request=self.context.get('request'))
 
+        if not obj.live:
+            _links['publish'] = reverse(
+                "page-publish",
+                kwargs={'pk': obj.id},
+                request=self.context.get('request'))
+        else:
+            _links['unpublish'] = reverse(
+                "page-unpublish",
+                kwargs={'pk': obj.id},
+                request=self.context.get('request'))
+
         return _links
 
     class Meta:
         model = Page
-        fields = ('_links', 'title', 'slug', '_type')
+        fields = ('_links', 'title', 'slug', '_type', 'live', 'expired',
+                  'revisions')
 
 
 class PageSummarySerializer(PageSerializer):
@@ -57,35 +76,36 @@ class PageTreeSerializer(PageSerializer):
         fields = ('_links', 'title', 'slug', '_type', 'children')
 
 
-class PageViewSet(viewsets.ModelViewSet):
+class PageViewSet(MetaMixin, viewsets.ModelViewSet):
 
     """Wagtail CMS page listing. You can move into the page hierarchy by
     following the links provided by pages that have children.
     Search can be performed like this:
 
-        /pages/?search=about
+        /pages/?<meta.search.param>=about
 
-    Search fields are title and slug.
-
-    Filtering is allowed on the fields:
-
-      * show_in_menus
-
-    To use a specific filter, add it to the URL:
+    Filtering is allowed on the fields specified in <meta.filter.fields>, i.e.:
 
         /pages/?show_in_menus=True
 
-    Currently, this filter takes the pythonic string representation of
+    Currently, boolean filters take the pythonic string representation of
     true and false, e.g. True and False.
+
+    Ordering may be performed on any field in <meta.ordering.fields.fields>,
+    by using the parameter specified in <meta.ordering.param>. You can order
+    according to natural ordering, or reverse.
+
+        /pages/?<meta.ordering.param>=title,-slug
 
     """
 
     queryset = Page.objects.all()
     serializer_class = PageSerializer
     filter_backends = (DjangoFilterBackend, SearchFilter, OrderingFilter)
-    filter_class = PageFilter
+    # filter_class = PageFilter
     pagination_class = LinksPagination
     search_fields = ('title', 'slug',)
+    filter_fields = ('title', 'show_in_menus')
 
     @detail_route()
     def children(self, request, pk=None):
@@ -108,6 +128,35 @@ class PageViewSet(viewsets.ModelViewSet):
 
         qs = [page for page in qs if page.is_root()]
 
-        serializer = PageTreeSerializer(qs, many=True)
+        context = {'request': self.request}
+
+        serializer = PageTreeSerializer(qs, many=True, context=context)
+
+        return Response(serializer.data)
+
+    @detail_route()
+    def publish(self, request, pk=None):
+
+        page = self.get_object()
+
+        rev = page.get_latest_revision()
+
+        if not rev:
+            rev = page.save_revision()
+
+        rev.publish()
+
+        serializer = self.get_serializer(page.get_latest_revision_as_page())
+
+        return Response(serializer.data)
+
+    @detail_route()
+    def unpublish(self, request, pk=None):
+
+        page = self.get_object()
+
+        page.unpublish()
+
+        serializer = self.get_serializer(page)
 
         return Response(serializer.data)
