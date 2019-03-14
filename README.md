@@ -24,7 +24,9 @@ There is several ways in which you can implement a RESTful interface
 upon any given back-end. This package has been set up according to the
 guidelines set out in this section.  CampSix is implemented based on
 the de facto REST framework for Django, _Django\_rest\_framwork_ or,
-_DRF_.
+_DRF_.  The core idea is that __all__ resources should be derivable
+from one base resource, and should be self-explanatory for a given
+consumer, be it humanoid or no.
 
 
 ### HATEOAS

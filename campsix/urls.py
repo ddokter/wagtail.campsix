@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework import routers
 from .page import PageViewSet
+from .site import Tree
 
 
 class WagtailAPIRootView(routers.APIRootView):
@@ -14,11 +15,11 @@ class WagtailAPIRootView(routers.APIRootView):
 
     def get(self, request, *args, **kwargs):
 
-        """ Override root view to add the auth views, like so:
-
-            self.api_root_dict["foo"] = "foo"
+        """Override root view to set comment and to add any non generic views
 
         """
+
+        self.api_root_dict["tree"] = "tree"
 
         return super(WagtailAPIRootView, self).get(request, *args, **kwargs)
 
@@ -36,10 +37,15 @@ class WagtailRouter(routers.DefaultRouter):
 
 router = WagtailRouter()
 
-
+# register all generic viewsets here.
+#
 router.register(r'pages', PageViewSet)
 
 
 urlpatterns = [
-    path(r'', include(router.urls))
+    path(r'', include(router.urls)),
+
+    # Specific viewsets or views go here
+    #
+    path(r'tree/', Tree.as_view(), name="tree"),
 ]
