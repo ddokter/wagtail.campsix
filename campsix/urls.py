@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework import routers
 from .page import PageViewSet
+from .image import ImageViewSet
 from .site import Tree
 
 
@@ -40,6 +41,7 @@ router = WagtailRouter()
 # register all generic viewsets here.
 #
 router.register(r'pages', PageViewSet)
+router.register(r'images', ImageViewSet)
 
 
 urlpatterns = [
